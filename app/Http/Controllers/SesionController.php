@@ -112,7 +112,6 @@ class SesionController extends Controller
 
             $response->setStatus(200);
             $response->setMessage('La sesión se cerró correctamente');
-            $response->setData([]);
         } catch (\Throwable $th) {
             $response->setStatus(gStatus::get($th->getCode()));
             $response->setMessage($th->getMessage());
