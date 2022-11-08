@@ -3,45 +3,45 @@
 namespace App\Http\Controllers;
 
 use App\gLibraries\gvalidate;
-use App\Models\User;
+use App\Models\Usuario;
 use App\Models\Response;
 use Illuminate\Http\Request;
 use Exception;
 
-class ProfileController extends Controller
+class PerfilController extends Controller
 {
 
-    public function profile($relative_id, $size)
+    public function perfil($id_relativo, $medida)
     {
         $response = new Response();
-        $content = null;
-        $type = null;
+        $perfil = null;
+        $tipo = null;
         try {
-            if ($size != 'full') {
-                $size = 'mini';
+            if ($medida != 'full') {
+                $medida = 'mini';
             }
             if (
-                !isset($relative_id)
+                !isset($id_relativo)
             ) {
                 throw new Exception("Error: No deje campos vacíos");
             }
 
-            $userJpa = User::select([
-                "users.image_$size as image_content",
-                'users.image_type'
+            $usuarioJpa = Usuario::select([
+                "usuarios.perfil_$medida AS perfil",
+                'usuarios.perfil_tipo AS tipo'
 
             ])
-                ->where('relative_id', $relative_id)
+                ->where('id_relativo', $id_relativo)
                 ->first();
 
-            if (!$userJpa) {
+            if (!$usuarioJpa) {
                 throw new Exception('No se encontraron datos');
             }
-            if (!$userJpa->image_content) {
+            if (!$usuarioJpa->perfil) {
                 throw new Exception('No existe imagen');
             }
-            $content = $userJpa->image_content;
-            $type = $userJpa->image_type;
+            $perfil = $usuarioJpa->perfil;
+            $tipo = $usuarioJpa->tipo;
             $response->setStatus(200);
         } catch (\Throwable $th) {
             $ruta = '../storage/images/user_not_found.svg';
@@ -49,18 +49,18 @@ class ProfileController extends Controller
             $datos_image = fread($fp, filesize($ruta));
             $datos_image = addslashes($datos_image);
             fclose($fp);
-            $content = stripslashes($datos_image);
-            $type = 'image/svg+xml';
+            $perfil = stripslashes($datos_image);
+            $tipo = 'image/svg+xml';
             $response->setStatus(400);
         } finally {
             return response(
-                $content,
+                $perfil,
                 $response->getStatus()
-            )->header('Content-Type', $type);
+            )->header('Content-Type', $tipo);
         }
     }
 
-    public function account(Request $request)
+    public function cuenta(Request $request)
     {
         $response = new Response();
         try {
