@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\gLibraries\guid;
 use App\gLibraries\gjson;
-use App\gLibraries\gValidate;
+use App\gLibraries\gvalidate;
 use App\gLibraries\gstatus;
 
 use App\Models\Usuario;
