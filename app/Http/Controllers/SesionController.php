@@ -97,11 +97,7 @@ class SesionController extends Controller
                 throw new Exception($mensaje, $estado);
             }
 
-            $sesionJpa = Usuario::select([
-                'usuarios.token'
-            ])
-                ->where('usuarios.id', $sesion['id'])
-                ->first();
+            $sesionJpa = Usuario::find($sesion['id']);
 
             if (!$sesionJpa) {
                 throw new Exception('No se pudo cerrar la sessión. No existe sesión');
