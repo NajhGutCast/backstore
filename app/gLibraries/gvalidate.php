@@ -4,6 +4,7 @@ namespace App\gLibraries;
 
 use App\Models\Usuario;
 use App\gLibraries\gjson;
+use App\gLibraries\gstatus;
 use Illuminate\Http\Request;
 use Exception;
 
