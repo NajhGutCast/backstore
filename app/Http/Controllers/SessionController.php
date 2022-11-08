@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Usuario;
 use App\Models\Response;
 use App\gLibraries\guid;
 use App\gLibraries\gjson;
+use App\gLibraries\gValidate;
 use Illuminate\Http\Request;
 use Exception;
 
@@ -18,58 +19,64 @@ class SessionController extends Controller
         try {
 
             if (
-                !isset($request->password) ||
-                !isset($request->username)
+                !isset($request->clave) ||
+                !isset($request->usuario)
             ) {
                 throw new Exception("Error: No deje campos vacíos");
             }
 
-            $userJpa = User::select([
-                'users.id',
-                'users.relative_id',
-                'users.username',
-                'users.password',
-                'users.auth_token',
-                'users.dni',
-                'users.lastname',
-                'users.name',
-                'users.email',
-                'users.phone_prefix',
-                'users.phone_number',
-                'roles.id AS role.id',
-                'roles.role AS role.role',
-                'roles.priority AS role.priority',
-                'roles.description AS role.description',
-                'roles.permissions AS role.permissions',
-                'users.status',
+            $sessionJpa = Usuario::select([
+                'usuarios.id',
+                'usuarios.id_relativo',
+                'usuarios.usuario',
+                'usuarios.clave',
+                'usuarios.token',
+                'usuarios.estado',
+
+                'personas.id AS persona.id',
+                'personas.numerodocumento AS persona.dni',
+                'personas.apellidos AS persona.apellido',
+                'personas.nombres AS persona.nombre',
+                'personas.telefono AS persona.telefono',
+                'personas.correo AS persona.correo',
+                'personas.direccion AS persona.direccion',
+                'personas.estado AS persona.estado',
+
+                'roles.id AS rol.id',
+                'roles.rol AS rol.rol',
+                'roles.prioridad AS rol.prioridad',
+                'roles.descripcion AS rol.descripcion',
+                'roles.permisos AS rol.permisos',
+                'roles.estado AS rol.estado',
             ])
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
-                ->where('username', $request->username)
+                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
+                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
+                ->where('usuarios.usuario', $request->usuario)
                 ->first();
 
-            if (!$userJpa) {
-                throw new Exception('Error: Usuario no existe');
+            if (!$sessionJpa) {
+                throw new Exception('El usuario solicitado no existe', 404);
             }
-            if (!$userJpa->status) {
-                throw new Exception('Este usuario se encuentra inactivo');
+            if (!$sessionJpa->status) {
+                throw new Exception('Este usuario se encuentra inactivo', 403);
             }
-            if (!password_verify($request->password, $userJpa->password)) {
-                throw new Exception('Error: Contraseña incorrecta');
+            if (!password_verify($request->clave, $sessionJpa->clave)) {
+                throw new Exception('La contraseña enviada es incorrecta', 400);
             }
 
-            $userJpa->auth_token = guid::long();
-            $userJpa->save();
+            $sessionJpa->token = guid::long();
+            $sessionJpa->save();
 
-            $user = gJSON::restore($userJpa->toArray());
-            unset($user['id']);
-            unset($user['password']);
-            $user['role']['permissions'] = gJSON::parse($user['role']['permissions']);
+            $session = gJSON::restore($sessionJpa->toArray());
+            unset($session['id']);
+            unset($session['password']);
+            $session['role']['permissions'] = gJSON::parse($session['role']['permissions']);
 
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
-            $response->setData($user);
+            $response->setData($session);
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus($th->getCode() < 100 ? 400 : $th->getCode());
             $response->setMessage($th->getMessage());
         } finally {
             return response(
@@ -88,36 +95,29 @@ class SessionController extends Controller
             ) {
                 throw new Exception("Error: no deje campos vaciós");
             }
-            if ($request->header('SoDe-Auth-Token') == null || $request->header('SoDe-Auth-User') == null) {
-                throw new Exception('Error: Datos de cabesera deben ser enviados');
+            [$status, $message, $session] = gValidate::obtener($request);
+            if ($status != 200) {
+                throw new Exception($message, $status);
             }
-            $userJpaValidation = User::select([
-                'users.username',
-                'users.auth_token'
+
+            $sessionJpa = Usuario::select([
+                'usuarios.token'
             ])
-            ->where('auth_token', $request->header('SoDe-Auth-Token'))
-            ->where('username', $request->header('SoDe-Auth-User'))
-            ->first();
+                ->where('usuarios.id', $session['id'])
+                ->first();
 
-            if (!$userJpaValidation) {
-                throw new Exception('Error: Usted no puede realizar esta operación (SUS DATOS DE USUARIO SON INCORRECTOS)');
+            if (!$sessionJpa) {
+                throw new Exception('No se pudo cerrar la sessión. No existe sesión');
             }
 
-            $userJpa = User::select([
-                'users.id',
-                'users.username',
-                'users.auth_token'
-            ])->where('relative_id', $request->relative_id)
-            ->first();
-
-            $userJpa ->auth_token = null;
-            $userJpa ->save();
+            $sessionJpa->token = null;
+            $sessionJpa->save();
 
             $response->setStatus(200);
-            $response->setMessage('Operación correcta');
+            $response->setMessage('La sesión se cerró correctamente');
             $response->setData([]);
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus($th->getCode() < 100 ? 400 : $th->getCode());
             $response->setMessage($th->getMessage());
         } finally {
             return response(
@@ -131,47 +131,61 @@ class SessionController extends Controller
     {
         $response = new Response();
         try {
-            if (
-                $request->header('sode-auth-token') == null ||
-                $request->header('sode-auth-user') == null
-            ) {
-                throw new Exception('Debe enviar los parámetros necesarios');
+
+            [$status, $message] = gValidate::obtener($request);
+
+            if ($status != 200) {
+                throw new Exception($message, $status);
             }
 
-            $userJpa = User::select([
-                'users.relative_id',
-                'users.username',
-                'users.auth_token',
-                'users.dni',
-                'users.lastname',
-                'users.name',
-                'users.email',
-                'users.phone_prefix',
-                'users.phone_number',
-                'roles.id AS role.id',
-                'roles.role AS role.role',
-                'roles.priority AS role.priority',
-                'roles.description AS role.description',
-                'roles.permissions AS role.permissions',
-                'users.status',
+            $sessionJpa = Usuario::select([
+                'usuarios.id',
+                'usuarios.id_relativo',
+                'usuarios.usuario',
+                'usuarios.clave',
+                'usuarios.token',
+                'usuarios.estado',
+
+                'personas.id AS persona.id',
+                'personas.numerodocumento AS persona.dni',
+                'personas.apellidos AS persona.apellido',
+                'personas.nombres AS persona.nombre',
+                'personas.telefono AS persona.telefono',
+                'personas.correo AS persona.correo',
+                'personas.direccion AS persona.direccion',
+                'personas.estado AS persona.estado',
+
+                'roles.id AS rol.id',
+                'roles.rol AS rol.rol',
+                'roles.prioridad AS rol.prioridad',
+                'roles.descripcion AS rol.descripcion',
+                'roles.permisos AS rol.permisos',
+                'roles.estado AS rol.estado',
             ])
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
-                ->where('auth_token', $request->header('sode-auth-token'))
-                ->where('username', $request->header('sode-auth-user'))
+                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
+                ->leftjoin('roles', 'users._rol', '=', 'roles.id')
+                ->where('usuarios.token', $request->header('sode-auth-token'))
+                ->where('usuarios.usuario', $request->header('sode-auth-user'))
                 ->first();
 
-            if (!$userJpa) {
-                throw new Exception('No tienes una sesión activa');
+            if (!$sessionJpa) {
+                throw new Exception('No tienes una sesión activa', 403);
             }
 
-            $user = gJSON::restore($userJpa->toArray());
-            $user['role']['permissions'] = gJSON::parse($user['role']['permissions']);
+            if (!$sessionJpa->status) {
+                throw new Exception('Este usuario se encuentra inactivo', 403);
+            }
+
+            $session = gJSON::restore($sessionJpa->toArray());
+            unset($session['id']);
+            unset($session['password']);
+            $session['role']['permissions'] = gJSON::parse($session['role']['permissions']);
 
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
-            $response->setData($user);
+            $response->setData($session);
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus($th->getCode() < 100 ? 400 : $th->getCode());
             $response->setMessage($th->getMessage());
         } finally {
             return response(

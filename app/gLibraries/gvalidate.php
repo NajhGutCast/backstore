@@ -2,61 +2,59 @@
 
 namespace App\gLibraries;
 
-use App\Models\User;
+use App\Models\Usuario;
 use App\gLibraries\gjson;
 use Illuminate\Http\Request;
-use App\Models\Role;
 use Exception;
 
 class gValidate
 {
-
-    public static function get(Request $request): array
+    public static function obtener(Request $request): array
     {
-        $role = new Role();
-        $status = 200;
-        $message = 'Operación correcta';
-        $userid = null;
+        $estado = 200;
+        $mensaje = 'Operación correcta';
+        $session = new Usuario();
         try {
-            if ($request->header('SoDe-Auth-Token') == null || $request->header('SoDe-Auth-User') == null) {
-                $status = 401;
-                throw new Exception('Error: Datos de cabecera deben ser enviados');
+            if (
+                $request->header('SoDe-Auth-User') == null ||
+                $request->header('SoDe-Auth-Token') == null
+            ) {
+                throw new Exception('Error: Debes enviar los encabezados de autenticación', 401);
             }
 
-            $userJpa = User::select([
-                'users.id',
-                'roles.id AS role.id',
-                'roles.priority AS role.priority',
-                'roles.permissions AS role.permissions',
-                'roles.status AS role.status'
+            $sessionJpa = Usuario::select([
+                'usuarios.id AS id',
+                'usuarios.estado AS estado',
+                'roles.id AS rol.id',
+                'roles.prioridad AS rol.prioridad',
+                'roles.permisos AS rol.permisos',
+                'roles.estado AS role.estado'
             ])
-                ->where('auth_token', $request->header('SoDe-Auth-Token'))
-                ->where('username', $request->header('SoDe-Auth-User'))
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
+                ->where('usuarios.token', $request->header('SoDe-Auth-Token'))
+                ->where('usuarios.usuario', $request->header('SoDe-Auth-User'))
+                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
                 ->first();
 
-            if (!$userJpa) {
-                $status = 403;
-                throw new Exception('La sesión ha expirado o has iniciado sesión en otro dispositivo');
+            if (!$sessionJpa) {
+                throw new Exception('La sesión ha expirado o has iniciado sesión en otro dispositivo', 403);
             }
 
-            $user = gJSON::restore($userJpa->toArray());
-            $userid = $user['id'];
-            $role->id = $user['role']['id'];
-            $role->priority = $user['role']['priority'];
-            $role->permissions = gJSON::parse($user['role']['permissions']);
-            $role->status = $user['role']['status'];
-
-            if (!$role->status) {
-                $status = 400;
-                throw new Exception('Tu rol se encuentra deshabilitado');
+            $session = gJSON::restore($sessionJpa->toArray());
+            if (!$session['estado']) {
+                throw new Exception('No tienes permisos para acceder. Su usuario se encuentra inactivo', 403);
             }
+            if (!$session['rol']['estado']) {
+                throw new Exception('No tienes permisos para acceder. Su rol se encuentra inactivo', 403);
+            }
+
+            $session['rol']['permisos'] = gJSON::parse($session['rol']['permisos']);
         } catch (\Throwable $th) {
+            $status = $th->getCode() < 100 ? 400 : $th->getCode();
             $message = $th->getMessage();
-            $role = null;
+            $session = null;
         }
 
-        return [$status, $message, $role, $userid];
+        return [$status, $message, $session];
     }
 
     public static function check(array $permissions, String $view, String $permission): bool

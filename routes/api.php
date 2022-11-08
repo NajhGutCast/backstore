@@ -73,4 +73,7 @@ Route::delete('/permissions', [PermissionController::class, 'delete']);
 Route::post('/permissions/restore', [PermissionController::class, 'restore']);
 Route::post('/permissions/paginate', [PermissionController::class, 'paginate']);
 
+Route::get('/productos', [ProductosController::class, 'listar']);
+Route::post('/productos', [ProductosController::class, 'agregar']);
+
 Route::any('/*', null);

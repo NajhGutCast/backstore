@@ -2,22 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Persona;
+use App\Models\Usuario;
 use App\Models\Response;
 use App\gLibraries\guid;
 use App\gLibraries\gjson;
 use App\gLibraries\gvalidate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
-
-
 use Exception;
 
-class UserController extends Controller
+class UsuarioController extends Controller
 {
 
-    public function index(Request $request)
+    public function listar(Request $request)
     {
         $response = new Response();
         try {
@@ -25,40 +23,42 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'users', 'read')) {
+            if (!gvalidate::check($role->permissions, 'usuarios', 'listar')) {
                 throw new Exception('No tienes permisos para listar los usuarios del sistema');
             }
-            $usersJpa = User::select([
-                'users.id',
-                'users.relative_id',
-                'users.username',
-                'users.password',
-                'users.dni',
-                'users.lastname',
-                'users.name',
-                'users.email',
-                'users.phone_prefix',
-                'users.phone_number',
-                'roles.id AS role.id',
-                'roles.role AS role.role',
-                'roles.description AS role.description',
-                'roles.permissions AS role.permissions',
-                'users.status',
+            $usuariosJpa = Usuario::select([
+                'usuarios.id',
+                'usuarios.idrelativo',
+                'usuarios.usuario',
+                'personas.id AS persona.id',
+                'personas.numerodocumento AS persona.dni',
+                'personas.apellidos AS persona.apellidos',
+                'usuarios.telefono AS persona.telefono',
+                'usuarios.correo AS persona.correo',
+                'usuarios.direccion AS persona.direccion',
+                'usuarios.estado AS persona.estado',
+                'roles.id AS rol.id',
+                'roles.rol AS rol.rol',
+                'roles.prioridad AS rol.prioridad',
+                'roles.descripcion AS rol.descripcion',
+                'roles.permisos AS rol.permisos',
+                'roles.estado AS rol.estado',
+                'usuarios.estado',
             ])
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
-                ->where('roles.priority', '>=', $role->priority)
+                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
+                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
+                ->where('roles.prioridad', '>=', $role->prioridad)
                 ->get();
 
-            $users = array();
-            foreach ($usersJpa as $userJpa) {
-                $user = gJSON::restore($userJpa->toArray());
-                $user['role']['permissions'] = gJSON::parse($user['role']['permissions']);
-                unset($user['password']);
-                $users[] = $user;
+            $usuarios = array();
+            foreach ($usuariosJpa as $usuarioJpa) {
+                $usuario = gJSON::restore($usuarioJpa->toArray());
+                $usuario['rol']['permisos'] = gJSON::parse($usuario['rol']['permisos']);
+                $usuarios[] = $usuario;
             }
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
-            $response->setData($users);
+            $response->setData($usuarios);
         } catch (\Throwable $th) {
             $response->setStatus(400);
             $response->setMessage($th->getMessage());
@@ -70,35 +70,36 @@ class UserController extends Controller
         }
     }
 
-    public function getUser($username)
+    public function obtener($_usuario)
     {
         $response = new Response();
         try {
-            $userJpa = User::select([
+            $usuarioJpa = Usuario::select([
 
-                'users.relative_id',
-                'users.username',
-                'users.name',
-                'users.status',
-                'roles.role AS role.role',
+                'usuarios.idrelativo',
+                'usuarios.usuario',
+                'personas.nombre AS persona.nombre',
+                'usuarios.estado',
+                'roles.rol AS rol.rol',
             ])
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
-                ->where('username', $username)
+                ->leftjoin('personas', 'usuarios._rol', '=', 'personas.id')
+                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
+                ->where('usuarios.usuario', $_usuario)
                 ->first();
 
-            if (!$userJpa) {
+            if (!$usuarioJpa) {
                 throw new Exception('Este usuario no existe');
             }
 
-            if (!$userJpa->status) {
+            if (!$usuarioJpa->estado) {
                 throw new Exception('Este usuario se encuentra inactivo');
             }
 
-            $user = gJSON::restore($userJpa->toArray());
+            $usuario = gJSON::restore($usuarioJpa->toArray());
 
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
-            $response->setData($user);
+            $response->setData($usuario);
         } catch (\Throwable $th) {
             $response->setStatus(400);
             $response->setMessage($th->getMessage());
@@ -110,7 +111,7 @@ class UserController extends Controller
         }
     }
 
-    public function paginate(Request $request)
+    public function paginado(Request $request)
     {
         $response = new Response();
         try {
@@ -119,33 +120,33 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'users', 'read')) {
+            if (!gvalidate::check($role->permissions, 'usuarios', 'read')) {
                 throw new Exception('No tienes permisos para listar los usuarios del sistema');
             }
 
-            $query = User::select([
-                'users.id',
-                'users.relative_id',
-                'users.username',
-                'users.password',
-                'users.dni',
-                'users.lastname',
-                'users.name',
-                'users.email',
-                'users.phone_prefix',
-                'users.phone_number',
+            $query = Usuario::select([
+                'usuarios.id',
+                'usuarios.relative_id',
+                'usuarios.usuarioname',
+                'usuarios.password',
+                'usuarios.dni',
+                'usuarios.lastname',
+                'usuarios.name',
+                'usuarios.email',
+                'usuarios.phone_prefix',
+                'usuarios.phone_number',
                 'roles.id AS role.id',
                 'roles.role AS role.role',
                 'roles.description AS role.description',
                 'roles.permissions AS role.permissions',
-                'users.status',
+                'usuarios.status',
             ])
-                ->leftjoin('roles', 'users._role', '=', 'roles.id')
+                ->leftjoin('roles', 'usuarios._role', '=', 'roles.id')
                 ->where('roles.priority', '>=', $role->priority)
-                ->orderBy('users.' . $request->order['column'], $request->order['dir']);
+                ->orderBy('usuarios.' . $request->order['column'], $request->order['dir']);
 
             if (!$request->all) {
-                $query->whereNotNull('users.status');
+                $query->whereNotNull('usuarios.status');
             }
 
             $query->where(function ($q) use ($request) {
@@ -153,20 +154,20 @@ class UserController extends Controller
                 $type = $request->search['regex'] ? 'like' : '=';
                 $value = $request->search['value'];
                 $value = $type == 'like' ? DB::raw("'%{$value}%'") : $value;
-                if ($column == 'username' || $column == '*') {
-                    $q->where('users.username', $type, $value);
+                if ($column == 'usuarioname' || $column == '*') {
+                    $q->where('usuarios.usuarioname', $type, $value);
                 }
                 if ($column == 'lastname' || $column == '*') {
-                    $q->orWhere('users.lastname', $type, $value);
+                    $q->orWhere('usuarios.lastname', $type, $value);
                 }
                 if ($column == 'name' || $column == '*') {
-                    $q->orWhere('users.name', $type, $value);
+                    $q->orWhere('usuarios.name', $type, $value);
                 }
                 if ($column == 'email' || $column == '*') {
-                    $q->orWhere('users.email', $type, $value);
+                    $q->orWhere('usuarios.email', $type, $value);
                 }
                 if ($column == 'phone_number' || $column == '*') {
-                    $q->orWhere('users.phone_number', $type, $value);
+                    $q->orWhere('usuarios.phone_number', $type, $value);
                 }
                 if ($column == '_role' || $column == '*') {
                     $q->orWhere('roles.role', $type, $value);
@@ -174,24 +175,24 @@ class UserController extends Controller
             });
 
             $iTotalDisplayRecords = $query->count();
-            $usersJpa = $query
+            $usuariosJpa = $query
                 ->skip($request->start)
                 ->take($request->length)
                 ->get();
 
-            $users = array();
-            foreach ($usersJpa as $userJpa) {
-                $user = gJSON::restore($userJpa->toArray());
-                $user['role']['permissions'] = gJSON::parse($user['role']['permissions']);
-                unset($user['password']);
-                $users[] = $user;
+            $usuarios = array();
+            foreach ($usuariosJpa as $usuarioJpa) {
+                $usuario = gJSON::restore($usuarioJpa->toArray());
+                $usuario['role']['permissions'] = gJSON::parse($usuario['role']['permissions']);
+                unset($usuario['password']);
+                $usuarios[] = $usuario;
             }
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
             $response->setDraw($request->draw);
             $response->setITotalDisplayRecords($iTotalDisplayRecords);
-            $response->setITotalRecords(User::count());
-            $response->setData($users);
+            $response->setITotalRecords(Usuario::count());
+            $response->setData($usuarios);
         } catch (\Throwable $th) {
             $response->setStatus(400);
             $response->setMessage($th->getMessage());
@@ -203,13 +204,13 @@ class UserController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function guardar(Request $request)
     {
         $response = new Response();
         try {
 
             if (
-                !isset($request->username) ||
+                !isset($request->usuarioname) ||
                 !isset($request->password) ||
                 !isset($request->_role) ||
                 !isset($request->dni) ||
@@ -223,17 +224,17 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'users', 'create')) {
+            if (!gvalidate::check($role->permissions, 'usuarios', 'create')) {
                 throw new Exception('No tienes permisos para agregar usuarios en el sistema');
             }
 
-            $userValidation = User::select(['users.username'])->where('username', $request->username)->first();
+            $usuarioValidation = Usuario::select(['usuarios.usuarioname'])->where('usuarioname', $request->usuarioname)->first();
 
-            if ($userValidation) {
+            if ($usuarioValidation) {
                 throw new Exception("Este usuario ya existe");
             }
 
-            $userJpa = new User();
+            $usuarioJpa = new Usuario();
 
             if (
                 isset($request->image_type) &&
@@ -245,35 +246,35 @@ class UserController extends Controller
                     $request->image_mini &&
                     $request->image_full
                 ) {
-                    $userJpa->image_type = $request->image_type;
-                    $userJpa->image_mini = base64_decode($request->image_mini);
-                    $userJpa->image_full = base64_decode($request->image_full);
+                    $usuarioJpa->image_type = $request->image_type;
+                    $usuarioJpa->image_mini = base64_decode($request->image_mini);
+                    $usuarioJpa->image_full = base64_decode($request->image_full);
                 } else {
-                    $userJpa->image_type = null;
-                    $userJpa->image_mini = null;
-                    $userJpa->image_full = null;
+                    $usuarioJpa->image_type = null;
+                    $usuarioJpa->image_mini = null;
+                    $usuarioJpa->image_full = null;
                 }
             }
 
-            $userJpa->relative_id = guid::short();
-            $userJpa->username = $request->username;
-            $userJpa->password = password_hash($request->password, PASSWORD_DEFAULT);
-            $userJpa->_role = $request->_role;
-            $userJpa->dni = $request->dni;
-            $userJpa->lastname = $request->lastname;
-            $userJpa->name = $request->name;
+            $usuarioJpa->relative_id = guid::short();
+            $usuarioJpa->usuarioname = $request->usuarioname;
+            $usuarioJpa->password = password_hash($request->password, PASSWORD_DEFAULT);
+            $usuarioJpa->_role = $request->_role;
+            $usuarioJpa->dni = $request->dni;
+            $usuarioJpa->lastname = $request->lastname;
+            $usuarioJpa->name = $request->name;
             if (
                 isset($request->phone_prefix) &&
                 isset($request->phone_number)
             ) {
-                $userJpa->phone_prefix = $request->phone_prefix;
-                $userJpa->phone_number = $request->phone_number;
+                $usuarioJpa->phone_prefix = $request->phone_prefix;
+                $usuarioJpa->phone_number = $request->phone_number;
             }
             if (isset($request->email)) {
-                $userJpa->email = $request->email;
+                $usuarioJpa->email = $request->email;
             }
 
-            $userJpa->save();
+            $usuarioJpa->save();
 
             $response->setStatus(200);
             $response->setMessage('Usuario agregado correctamente');
@@ -288,12 +289,12 @@ class UserController extends Controller
         }
     }
 
-    public function update(Request $request)
+    public function actualizar(Request $request)
     {
         $response = new Response();
         try {
             if (
-                !isset($request->username) &&
+                !isset($request->usuarioname) &&
                 !isset($request->_role) &&
                 !isset($request->dni) &&
                 !isset($request->lastname) &&
@@ -306,12 +307,12 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'users', 'update')) {
+            if (!gvalidate::check($role->permissions, 'usuarios', 'update')) {
                 throw new Exception('No tienes permisos para modificar usuarios en el sistema');
             }
 
-            $userJpa = User::find($request->id);
-            if (!$userJpa) {
+            $usuarioJpa = Usuario::find($request->id);
+            if (!$usuarioJpa) {
                 throw new Exception("Este usuario no existe");
             }
 
@@ -325,42 +326,42 @@ class UserController extends Controller
                     $request->image_mini != 'none' &&
                     $request->image_full != 'none'
                 ) {
-                    $userJpa->image_type = $request->image_type;
-                    $userJpa->image_mini = base64_decode($request->image_mini);
-                    $userJpa->image_full = base64_decode($request->image_full);
+                    $usuarioJpa->image_type = $request->image_type;
+                    $usuarioJpa->image_mini = base64_decode($request->image_mini);
+                    $usuarioJpa->image_full = base64_decode($request->image_full);
                 } else {
-                    $userJpa->image_type = null;
-                    $userJpa->image_mini = null;
-                    $userJpa->image_full = null;
+                    $usuarioJpa->image_type = null;
+                    $usuarioJpa->image_mini = null;
+                    $usuarioJpa->image_full = null;
                 }
             }
 
-            $userJpa->username = $request->username;
+            $usuarioJpa->usuarioname = $request->usuarioname;
 
             if (isset($request->password) && $request->password) {
-                $userJpa->password = password_hash($request->password, PASSWORD_DEFAULT);
-                $userJpa->auth_token = null;
+                $usuarioJpa->password = password_hash($request->password, PASSWORD_DEFAULT);
+                $usuarioJpa->auth_token = null;
             }
 
-            $userJpa->_role = $request->_role;
-            $userJpa->dni = $request->dni;
-            $userJpa->lastname = $request->lastname;
-            $userJpa->name = $request->name;
+            $usuarioJpa->_role = $request->_role;
+            $usuarioJpa->dni = $request->dni;
+            $usuarioJpa->lastname = $request->lastname;
+            $usuarioJpa->name = $request->name;
             if (
                 isset($request->phone_prefix) &&
                 isset($request->phone_number)
             ) {
-                $userJpa->phone_prefix = $request->phone_prefix;
-                $userJpa->phone_number = $request->phone_number;
+                $usuarioJpa->phone_prefix = $request->phone_prefix;
+                $usuarioJpa->phone_number = $request->phone_number;
             }
             if (isset($request->email)) {
-                $userJpa->email = $request->email;
+                $usuarioJpa->email = $request->email;
             }
             if (gValidate::check($role->permissions, 'views', 'change_status'))
                 if (isset($request->status))
-                    $userJpa->status = $request->status;
+                    $usuarioJpa->status = $request->status;
 
-            $userJpa->save();
+            $usuarioJpa->save();
 
             $response->setStatus(200);
             $response->setMessage('Usuario actualizado correctamente');
@@ -376,7 +377,7 @@ class UserController extends Controller
         }
     }
 
-    public function destroy(Request $request)
+    public function eliminar(Request $request)
     {
         $response = new Response();
         try {
@@ -385,7 +386,7 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gValidate::check($role->permissions, 'users', 'delete_restore')) {
+            if (!gValidate::check($role->permissions, 'usuarios', 'delete_restore')) {
                 throw new Exception('No tienes permisos para eliminar usuarios del sistema');
             }
 
@@ -395,14 +396,14 @@ class UserController extends Controller
                 throw new Exception("Error: Es necesario el ID para esta operación");
             }
 
-            $userJpa = User::find($request->id);
+            $usuarioJpa = Usuario::find($request->id);
 
-            if (!$userJpa) {
+            if (!$usuarioJpa) {
                 throw new Exception("Este usuario no existe");
             }
 
-            $userJpa->status = null;
-            $userJpa->save();
+            $usuarioJpa->status = null;
+            $usuarioJpa->save();
 
             $response->setStatus(200);
             $response->setMessage('El usuario se ha eliminado correctamente');
@@ -417,7 +418,7 @@ class UserController extends Controller
         }
     }
 
-    public function restore(Request $request)
+    public function restablecer(Request $request)
     {
         $response = new Response();
         try {
@@ -426,7 +427,7 @@ class UserController extends Controller
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gValidate::check($role->permissions, 'users', 'delete_restore')) {
+            if (!gValidate::check($role->permissions, 'usuarios', 'delete_restore')) {
                 throw new Exception('No tienes permisos para restaurar usuarios del sistema');
             }
 
@@ -436,12 +437,12 @@ class UserController extends Controller
                 throw new Exception("Error: Es necesario el ID para esta operación");
             }
 
-            $userJpa = User::find($request->id);
-            if (!$userJpa) {
+            $usuarioJpa = Usuario::find($request->id);
+            if (!$usuarioJpa) {
                 throw new Exception("Este usuario no existe");
             }
-            $userJpa->status = "1";
-            $userJpa->save();
+            $usuarioJpa->status = "1";
+            $usuarioJpa->save();
 
             $response->setStatus(200);
             $response->setMessage('El usuario ha sido restaurado correctamente');
