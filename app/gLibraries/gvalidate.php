@@ -28,7 +28,7 @@ class gValidate
                 'roles.id AS rol.id',
                 'roles.prioridad AS rol.prioridad',
                 'roles.permisos AS rol.permisos',
-                'roles.estado AS role.estado'
+                'roles.estado AS rol.estado'
             ])
                 ->where('usuarios.token', $request->header('SoDe-Auth-Token'))
                 ->where('usuarios.usuario', $request->header('SoDe-Auth-User'))
