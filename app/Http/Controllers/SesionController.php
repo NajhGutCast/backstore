@@ -92,11 +92,6 @@ class SesionController extends Controller
     {
         $response = new Response();
         try {
-            if (
-                !isset($request->relative_id)
-            ) {
-                throw new Exception("Error: no deje campos vaciós");
-            }
             [$estado, $mensaje, $sesion] = gValidate::obtener($request);
             if ($estado != 200) {
                 throw new Exception($mensaje, $estado);
