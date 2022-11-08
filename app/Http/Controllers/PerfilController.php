@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\gLibraries\gvalidate;
+use App\gLibraries\gStatus;
+use App\gLibraries\gValidate;
 use App\Models\Usuario;
 use App\Models\Response;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class PerfilController extends Controller
             if (
                 !isset($id_relativo)
             ) {
-                throw new Exception("Error: No deje campos vacíos");
+                throw new Exception("Error: No deje campos vacíos", 401);
             }
 
             $usuarioJpa = Usuario::select([
@@ -35,10 +36,10 @@ class PerfilController extends Controller
                 ->first();
 
             if (!$usuarioJpa) {
-                throw new Exception('No se encontraron datos');
+                throw new Exception('No se encontraron datos', 404);
             }
             if (!$usuarioJpa->perfil) {
-                throw new Exception('No existe imagen');
+                throw new Exception('No existe imagen', 400);
             }
             $perfil = $usuarioJpa->perfil;
             $tipo = $usuarioJpa->tipo;
@@ -51,7 +52,7 @@ class PerfilController extends Controller
             fclose($fp);
             $perfil = stripslashes($datos_image);
             $tipo = 'image/svg+xml';
-            $response->setStatus(400);
+            $response->setStatus(gStatus::get($th->getCode()));
         } finally {
             return response(
                 $perfil,
@@ -64,67 +65,71 @@ class PerfilController extends Controller
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::obtener($request);
-            if ($status != 200) {
-                throw new Exception($message);
+            [$estado, $mensaje, $sesion] = gValidate::obtener($request);
+            if ($estado != 200) {
+                throw new Exception($mensaje, $estado);
             }
 
             if (
-                !isset($request->username) &&
-                !isset($request->password)
+                !isset($request->usuario) &&
+                !isset($request->clave)
             ) {
-                throw new Exception("Error: No deje campos vacíos");
+                throw new Exception("Los campos usuario y contraseña son obligatorios", 401);
             }
 
-            if (strlen($request->username) < 4) {
-                throw new Exception('El nombre de usuario debe contener entre 4 y 16 caracteres');
+            if (strlen($request->usuario) < 4) {
+                throw new Exception('El nombre de usuario debe contener entre 4 y 16 caracteres', 400);
             }
 
-            if (!ctype_alnum($request->username)) {
-                throw new Exception('El nombre de usuario debe contener solo letras y números');
+            if (!ctype_alnum($request->usuario)) {
+                throw new Exception('El nombre de usuario debe contener solo letras y números', 400);
             }
 
-            $userJpa = User::find($userid);
-            if (!$userJpa) {
-                throw new Exception("Este usuario no existe");
+            $usuarioJpa = Usuario::find($sesion['id']);
+
+            if (!$usuarioJpa) {
+                throw new Exception("El usuario que intentas modificar no existe", 404);
             }
 
-            if (!password_verify($request->password, $userJpa->password)) {
-                throw new Exception('Error: Contraseña incorrecta');
+            if (!$usuarioJpa->estado) {
+                throw new Exception('El usuario que intentas modificar no se encuentra activo', 400);
+            }
+
+            if (!password_verify($request->clave, $usuarioJpa->clave)) {
+                throw new Exception('Contraseña incorrecta. Ingrese una contraseña válida', 400);
             }
 
             if (
-                isset($request->image_type) &&
-                isset($request->image_mini) &&
-                isset($request->image_full)
+                isset($request->perfil_tipo) &&
+                isset($request->perfil_mini) &&
+                isset($request->perfil_full)
             ) {
                 if (
-                    $request->image_type != 'none' &&
-                    $request->image_mini != 'none' &&
-                    $request->image_full != 'none'
+                    $request->perfil_tipo != 'none' &&
+                    $request->perfil_mini != 'none' &&
+                    $request->perfil_full != 'none'
                 ) {
-                    $userJpa->image_type = $request->image_type;
-                    $userJpa->image_mini = base64_decode($request->image_mini);
-                    $userJpa->image_full = base64_decode($request->image_full);
+                    $usuarioJpa->perfil_tipo = $request->perfil_tipo;
+                    $usuarioJpa->perfil_mini = base64_decode($request->perfil_mini);
+                    $usuarioJpa->perfil_full = base64_decode($request->perfil_full);
                 } else {
-                    $userJpa->image_type = null;
-                    $userJpa->image_mini = null;
-                    $userJpa->image_full = null;
+                    $usuarioJpa->perfil_tipo = null;
+                    $usuarioJpa->perfil_mini = null;
+                    $usuarioJpa->perfil_full = null;
                 }
             }
 
-            if ($request->username != $userJpa->username) {
-                $userJpa->username = $request->username;
-                $userJpa->auth_token = null;
+            if ($request->usuario != $usuarioJpa->usuario) {
+                $usuarioJpa->usuario = $request->usuario;
+                $usuarioJpa->token = null;
             }
 
-            $userJpa->save();
+            $usuarioJpa->save();
 
             $response->setStatus(200);
-            $response->setMessage('Usuario actualizado correctamente');
-            $response->setData($request->toArray());
+            $response->setMessage('El usuario ha sido actualizado correctamente');
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus(gStatus::get($th->getCode()));
             $response->setMessage($th->getMessage());
         } finally {
             return response(
@@ -134,53 +139,57 @@ class PerfilController extends Controller
         }
     }
 
-    public function password(Request $request)
+    public function clave(Request $request)
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::obtener($request);
-            if ($status != 200) {
-                throw new Exception($message);
+            [$estado, $mensaje, $sesion] = gValidate::obtener($request);
+            if ($estado != 200) {
+                throw new Exception($mensaje, $estado);
             }
             if (
-                !isset($request->password_new) &&
-                !isset($request->password_confirm) &&
-                !isset($request->password)
+                !isset($request->clave_nueva) &&
+                !isset($request->clave_confirmacion) &&
+                !isset($request->clave)
             ) {
-                throw new Exception("Error: No deje campos vacíos");
+                throw new Exception("Envía todos los datos necesarios");
             }
 
-            if ($request->password_new != $request->password_confirm) {
+            if ($request->clave_nueva != $request->clave_confirmacion) {
                 throw new Exception('Las contraseñas deben ser iguales');
             }
 
-            if (strlen($request->password_new) < 4) {
+            if (strlen($request->clave_nueva) < 4) {
                 throw new Exception('La contraseña debe contener 4 caracteres como mínimo. Recuerda: Si quieres tener una cuenta segura, debes crear una contraseña segura');
             }
 
-            $userJpa = User::find($userid);
-            if (!$userJpa) {
-                throw new Exception("Este usuario no existe");
+            $usuarioJpa = Usuario::find($sesion['id']);
+
+            if (!$usuarioJpa) {
+                throw new Exception("El usuario que intentas modificar no existe", 404);
             }
 
-            if (!password_verify($request->password, $userJpa->password)) {
-                throw new Exception('Error: Contraseña de confirmación incorrecta');
+            if (!$usuarioJpa->estado) {
+                throw new Exception('El usuario que intentas modificar no se encuentra activo', 400);
             }
 
-            if (password_verify($request->password_new, $userJpa->password)) {
+            if (!password_verify($request->clave, $usuarioJpa->clave)) {
+                throw new Exception('Contraseña incorrecta. Ingrese una contraseña válida', 400);
+            }
+
+            if (password_verify($request->clave_nueva, $usuarioJpa->clave)) {
                 throw new Exception('La contraseña nueva debe ser diferente a la anterior');
             }
 
-            $userJpa->password = password_hash($request->password_new, PASSWORD_DEFAULT);
-            $userJpa->auth_token = null;
+            $usuarioJpa->clave = password_hash($request->clave_nueva, PASSWORD_DEFAULT);
+            $usuarioJpa->token = null;
 
-            $userJpa->save();
+            $usuarioJpa->save();
 
             $response->setStatus(200);
-            $response->setMessage('Usuario actualizado correctamente');
-            $response->setData($request->toArray());
+            $response->setMessage('La contraseña ha sido actualizada correctamente');
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus(gStatus::get($th->getCode()));
             $response->setMessage($th->getMessage());
         } finally {
             return response(
@@ -194,41 +203,46 @@ class PerfilController extends Controller
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::obtener($request);
-            if ($status != 200) {
-                throw new Exception($message);
+            [$estado, $mensaje, $sesion] = gValidate::obtener($request);
+            if ($estado != 200) {
+                throw new Exception($mensaje, $estado);
             }
 
             if (
-                !isset($request->lastname) &&
-                !isset($request->name)
+                !isset($request->apellidos) &&
+                !isset($request->nombres)
             ) {
-                throw new Exception("Error: No deje campos vacíos");
+                throw new Exception('Los apellidos y nombres son obligatorios', 401);
             }
 
-            $userJpa = User::find($userid);
-            if (!$userJpa) {
-                throw new Exception("Este usuario no existe");
+            $usuarioJpa = Usuario::find($sesion['id']);
+
+            if (!$usuarioJpa) {
+                throw new Exception("El usuario que intentas modificar no existe", 404);
             }
 
-            if (!password_verify($request->password, $userJpa->password)) {
-                throw new Exception('Error: Contraseña de confirmación incorrecta');
+            if (!$usuarioJpa->estado) {
+                throw new Exception('El usuario que intentas modificar no se encuentra activo', 400);
             }
 
-            $userJpa->lastname = $request->lastname;
-            $userJpa->name = $request->name;
+            if (!password_verify($request->clave, $usuarioJpa->clave)) {
+                throw new Exception('Contraseña incorrecta. Ingrese una contraseña válida', 400);
+            }
+
+            $usuarioJpa->apellidos = $request->apellidos;
+            $usuarioJpa->nombres = $request->nombres;
             if (
                 isset($request->phone_prefix) &&
                 isset($request->phone_number)
             ) {
-                $userJpa->phone_prefix = $request->phone_prefix;
-                $userJpa->phone_number = $request->phone_number;
+                $usuarioJpa->phone_prefix = $request->phone_prefix;
+                $usuarioJpa->phone_number = $request->phone_number;
             }
             if (isset($request->email)) {
-                $userJpa->email = $request->email;
+                $usuarioJpa->email = $request->email;
             }
 
-            $userJpa->save();
+            $usuarioJpa->save();
 
             $response->setStatus(200);
             $response->setMessage('Usuario actualizado correctamente');
