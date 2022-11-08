@@ -64,7 +64,7 @@ class PerfilController extends Controller
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::get($request);
+            [$status, $message, $role, $userid] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
@@ -138,7 +138,7 @@ class PerfilController extends Controller
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::get($request);
+            [$status, $message, $role, $userid] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
@@ -194,7 +194,7 @@ class PerfilController extends Controller
     {
         $response = new Response();
         try {
-            [$status, $message, $role, $userid] = gValidate::get($request);
+            [$status, $message, $role, $userid] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
