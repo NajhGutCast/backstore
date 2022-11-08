@@ -13,7 +13,7 @@ class gValidate
     {
         $estado = 200;
         $mensaje = 'Operación correcta';
-        $session = new Usuario();
+        $sesion = new Usuario();
         try {
             if (
                 $request->header('SoDe-Auth-User') == null ||
@@ -22,7 +22,7 @@ class gValidate
                 throw new Exception('Error: Debes enviar los encabezados de autenticación', 401);
             }
 
-            $sessionJpa = Usuario::select([
+            $sesionJpa = Usuario::select([
                 'usuarios.id AS id',
                 'usuarios.estado AS estado',
                 'roles.id AS rol.id',
@@ -35,26 +35,26 @@ class gValidate
                 ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
                 ->first();
 
-            if (!$sessionJpa) {
+            if (!$sesionJpa) {
                 throw new Exception('La sesión ha expirado o has iniciado sesión en otro dispositivo', 403);
             }
 
-            $session = gJSON::restore($sessionJpa->toArray());
-            if (!$session['estado']) {
+            $sesion = gJSON::restore($sesionJpa->toArray());
+            if (!$sesion['estado']) {
                 throw new Exception('No tienes permisos para acceder. Su usuario se encuentra inactivo', 403);
             }
-            if (!$session['rol']['estado']) {
+            if (!$sesion['rol']['estado']) {
                 throw new Exception('No tienes permisos para acceder. Su rol se encuentra inactivo', 403);
             }
 
-            $session['rol']['permisos'] = gJSON::parse($session['rol']['permisos']);
+            $sesion['rol']['permisos'] = gJSON::parse($sesion['rol']['permisos']);
         } catch (\Throwable $th) {
-            $status = $th->getCode() < 100 ? 400 : $th->getCode();
-            $message = $th->getMessage();
-            $session = null;
+            $estado = gStatus::get($th->getCode());
+            $mensaje = $th->getMessage();
+            $sesion = null;
         }
 
-        return [$status, $message, $session];
+        return [$estado, $mensaje, $sesion];
     }
 
     public static function check(array $permissions, String $view, String $permission): bool
