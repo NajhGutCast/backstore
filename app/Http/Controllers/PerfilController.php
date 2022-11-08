@@ -6,6 +6,7 @@ use App\gLibraries\gStatus;
 use App\gLibraries\gValidate;
 use App\Models\Usuario;
 use App\Models\Response;
+use App\Models\Persona;
 use Illuminate\Http\Request;
 use Exception;
 
@@ -209,10 +210,12 @@ class PerfilController extends Controller
             }
 
             if (
+                !isset($request->tipodocumento) &&
+                !isset($request->numerodocumento) &&
                 !isset($request->apellidos) &&
                 !isset($request->nombres)
             ) {
-                throw new Exception('Los apellidos y nombres son obligatorios', 401);
+                throw new Exception('Los datos de tipo documento, número documento, apellidos y nombres son obligatorios', 401);
             }
 
             $usuarioJpa = Usuario::find($sesion['id']);
@@ -229,24 +232,33 @@ class PerfilController extends Controller
                 throw new Exception('Contraseña incorrecta. Ingrese una contraseña válida', 400);
             }
 
-            $usuarioJpa->apellidos = $request->apellidos;
-            $usuarioJpa->nombres = $request->nombres;
-            if (
-                isset($request->phone_prefix) &&
-                isset($request->phone_number)
-            ) {
-                $usuarioJpa->phone_prefix = $request->phone_prefix;
-                $usuarioJpa->phone_number = $request->phone_number;
-            }
-            if (isset($request->email)) {
-                $usuarioJpa->email = $request->email;
+            $personaJpa = new Persona();
+            if ($usuarioJpa->_persona) {
+                $personaJpa = Persona::find($usuarioJpa->_persona);
             }
 
+            $personaJpa->tipodocumento = $request->tipodocumento;
+            $personaJpa->numerodocumento = $request->numerodocumento;
+            $personaJpa->apellidos = $request->apellidos;
+            $personaJpa->nombres = $request->nombres;
+            if (
+                isset($request->telefono)
+            ) {
+                $personaJpa->telefono = $request->telefono;
+            }
+            if (isset($request->correo)) {
+                $personaJpa->correo = $request->correo;
+            }
+            if (isset($request->direccion)) {
+                $personaJpa->direccion = $request->direccion;
+            }
+
+            $personaJpa->save();
+            $usuarioJpa->_persona = $personaJpa->id;
             $usuarioJpa->save();
 
             $response->setStatus(200);
-            $response->setMessage('Usuario actualizado correctamente');
-            $response->setData($request->toArray());
+            $response->setMessage('Los datos personales han sido actualizados correctamente');
         } catch (\Throwable $th) {
             $response->setStatus(400);
             $response->setMessage($th->getMessage());

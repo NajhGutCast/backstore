@@ -28,7 +28,7 @@ class UsuarioController extends Controller
             }
             $usuariosJpa = Usuario::select([
                 'usuarios.id',
-                'usuarios.idrelativo',
+                'usuarios.id_relativo',
                 'usuarios.usuario',
                 'personas.id AS persona.id',
                 'personas.numerodocumento AS persona.dni',
@@ -76,7 +76,7 @@ class UsuarioController extends Controller
         try {
             $usuarioJpa = Usuario::select([
 
-                'usuarios.idrelativo',
+                'usuarios.id_relativo',
                 'usuarios.usuario',
                 'personas.nombre AS persona.nombre',
                 'usuarios.estado',
