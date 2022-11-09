@@ -6,7 +6,7 @@ use App\Models\Persona;
 use App\Models\Usuario;
 use App\Models\Response;
 use App\gLibraries\guid;
-use App\gLibraries\gjson;
+use App\gLibraries\gJSON;
 use App\gLibraries\gStatus;
 use App\gLibraries\gvalidate;
 use Illuminate\Http\Request;
@@ -76,7 +76,6 @@ class UsuarioController extends Controller
         $response = new Response();
         try {
             $usuarioJpa = Usuario::select([
-
                 'usuarios.id_relativo',
                 'usuarios.usuario',
                 'personas.nombre AS persona.nombre',
