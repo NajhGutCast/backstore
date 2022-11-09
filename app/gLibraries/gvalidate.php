@@ -58,41 +58,41 @@ class gValidate
         return [$estado, $mensaje, $sesion];
     }
 
-    public static function check(array $permissions, String $view, String $permission): bool
+    public static function verificar(array $permisos, String $vista, String $permiso): bool
     {
-        $permissions = gJSON::flatten($permissions);
+        $permisos = gJSON::flatten($permisos);
         if (
-            isset($permissions["isRoot"]) ||
-            isset($permissions["isAdmin"]) ||
-            isset($permissions["$view.all"]) ||
-            isset($permissions["$view.$permission"])
+            isset($permisos["esRoot"]) ||
+            isset($permisos["esAdmin"]) ||
+            isset($permisos["$vista.todo"]) ||
+            isset($permisos["$vista.$permiso"])
         ) {
             return true;
         }
         return false;
     }
 
-    public static function cleanPermissions(array $permissions, array $before, array $toset): array
+    public static function limpiarPermisos(array $permisos, array $antes, array $nuevo): array
     {
         $ok = true;
-        $message = 'Operación correcta';
+        $mensage = 'Operación correcta';
 
-        $after = array();
+        $despues = array();
         try {
-            $before = gJSON::flatten($before);
-            $toset = gJSON::flatten($toset);
+            $antes = gJSON::flatten($antes);
+            $nuevo = gJSON::flatten($nuevo);
 
-            foreach ($toset as $key => $value) {
-                [$view, $permission] = explode('.', $key);
-                if (gValidate::check($permissions, $view, $permission) || $before[$key]) {
-                    $after[$key] = true;
+            foreach ($nuevo as $clave => $valor) {
+                [$vista, $permiso] = explode('.', $clave);
+                if (gValidate::verificar($permisos, $vista, $permiso) || $antes[$clave]) {
+                    $despues[$clave] = true;
                 }
             }
         } catch (\Throwable $th) {
             $ok = false;
-            $message = $th->getMessage();
+            $mensage = $th->getMessage();
         }
 
-        return [$ok, $message, gJSON::restore($after)];
+        return [$ok, $mensage, gJSON::restore($despues)];
     }
 }

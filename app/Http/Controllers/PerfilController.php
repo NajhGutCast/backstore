@@ -260,7 +260,7 @@ class PerfilController extends Controller
             $response->setStatus(200);
             $response->setMessage('Los datos personales han sido actualizados correctamente');
         } catch (\Throwable $th) {
-            $response->setStatus(400);
+            $response->setStatus(gStatus::get($th->getCode()));
             $response->setMessage($th->getMessage());
         } finally {
             return response(
