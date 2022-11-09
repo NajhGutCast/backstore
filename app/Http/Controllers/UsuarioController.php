@@ -84,7 +84,7 @@ class UsuarioController extends Controller
                 'usuarios.estado',
                 'roles.rol AS rol.rol',
             ])
-                ->leftjoin('personas', 'usuarios._rol', '=', 'personas.id')
+                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
                 ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
                 ->where('usuarios.usuario', $_usuario)
                 ->first();
