@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Persona;
 use App\Models\Usuario;
 use App\Models\Response;
 
 use App\gLibraries\guid;
-use App\gLibraries\gJSON;
-use App\gLibraries\gStatus;
-use App\gLibraries\gValidate;
+use App\gLibraries\gjson;
+use App\gLibraries\gstatus;
+use App\gLibraries\gvalidate;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,7 +79,7 @@ class UsuarioController extends Controller
             $usuarioJpa = Usuario::select([
                 'usuarios.id_relativo',
                 'usuarios.usuario',
-                'personas.nombre AS persona.nombre',
+                'personas.nombres AS persona.nombres',
                 'usuarios.estado',
                 'roles.rol AS rol.rol',
             ])
