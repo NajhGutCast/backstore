@@ -222,11 +222,11 @@ class UsuarioController extends Controller
                 throw new Exception("Error: No deje campos vacíos");
             }
 
-            [$status, $message, $role] = gValidate::get($request);
+            [$status, $message, $role] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'usuarios', 'create')) {
+            if (!gvalidate::verificar($role->permissions, 'usuarios', 'create')) {
                 throw new Exception('No tienes permisos para agregar usuarios en el sistema');
             }
 
@@ -305,11 +305,11 @@ class UsuarioController extends Controller
                 throw new Exception("Error: No deje campos vacíos");
             }
 
-            [$status, $message, $role] = gValidate::get($request);
+            [$status, $message, $role] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gvalidate::check($role->permissions, 'usuarios', 'update')) {
+            if (!gvalidate::verificar($role->permissions, 'usuarios', 'update')) {
                 throw new Exception('No tienes permisos para modificar usuarios en el sistema');
             }
 
@@ -359,7 +359,7 @@ class UsuarioController extends Controller
             if (isset($request->email)) {
                 $usuarioJpa->email = $request->email;
             }
-            if (gValidate::check($role->permissions, 'views', 'change_status'))
+            if (gValidate::verificar($role->permissions, 'views', 'change_status'))
                 if (isset($request->status))
                     $usuarioJpa->status = $request->status;
 
@@ -384,11 +384,11 @@ class UsuarioController extends Controller
         $response = new Response();
         try {
 
-            [$status, $message, $role] = gValidate::get($request);
+            [$status, $message, $role] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gValidate::check($role->permissions, 'usuarios', 'delete_restore')) {
+            if (!gValidate::verificar($role->permissions, 'usuarios', 'delete_restore')) {
                 throw new Exception('No tienes permisos para eliminar usuarios del sistema');
             }
 
@@ -425,11 +425,11 @@ class UsuarioController extends Controller
         $response = new Response();
         try {
 
-            [$status, $message, $role] = gValidate::get($request);
+            [$status, $message, $role] = gValidate::obtener($request);
             if ($status != 200) {
                 throw new Exception($message);
             }
-            if (!gValidate::check($role->permissions, 'usuarios', 'delete_restore')) {
+            if (!gValidate::verificar($role->permissions, 'usuarios', 'delete_restore')) {
                 throw new Exception('No tienes permisos para restaurar usuarios del sistema');
             }
 
