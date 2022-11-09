@@ -155,7 +155,7 @@ class SesionController extends Controller
                 'roles.estado AS rol.estado',
             ])
                 ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
-                ->leftjoin('roles', 'users._rol', '=', 'roles.id')
+                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
                 ->where('usuarios.token', $request->header('sode-auth-token'))
                 ->where('usuarios.usuario', $request->header('sode-auth-user'))
                 ->first();
