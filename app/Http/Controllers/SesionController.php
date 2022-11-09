@@ -166,7 +166,7 @@ class SesionController extends Controller
                 throw new Exception('No tienes una sesión activa', 403);
             }
 
-            if (!$sesionJpa->status) {
+            if (!$sesionJpa->estado) {
                 throw new Exception('Este usuario se encuentra inactivo', 403);
             }
 
