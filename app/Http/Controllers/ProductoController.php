@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Usuario;
 use App\Models\Response;
 
 use App\gLibraries\guid;
 use App\gLibraries\gjson;
 use App\gLibraries\gstatus;
 use App\gLibraries\gvalidate;
-
+use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class UsuarioController extends Controller
+class ProductoController extends Controller
 {
 
     public function listar(Request $request)
@@ -28,40 +27,38 @@ class UsuarioController extends Controller
             }
 
             // Verificamos el permiso
-            if (!gvalidate::verificar($sesion['rol']['permisos'], 'usuarios', 'listar')) {
-                throw new Exception('No tienes permisos para listar los usuarios del sistema');
+            if (!gvalidate::verificar($sesion['rol']['permisos'], 'productos', 'listar')) {
+                throw new Exception('No tienes permisos para listar los productos del sistema');
             }
 
             // Establecemos las columnas a obtener
-            $filasJpa = Usuario::select([
-                'usuarios.id',
-                'usuarios.id_relativo',
-                'usuarios.usuario',
-                'personas.id AS persona.id',
-                'personas.numerodocumento AS persona.dni',
-                'personas.apellidos AS persona.apellidos',
-                'personas.nombres AS persona.nombres',
-                'personas.telefono AS persona.telefono',
-                'personas.correo AS persona.correo',
-                'personas.direccion AS persona.direccion',
-                'usuarios.estado AS persona.estado',
-                'roles.id AS rol.id',
-                'roles.rol AS rol.rol',
-                'roles.prioridad AS rol.prioridad',
-                'roles.descripcion AS rol.descripcion',
-                'roles.permisos AS rol.permisos',
-                'roles.estado AS rol.estado',
-                'usuarios.estado',
+            $filasJpa = Producto::select([
+                'productos.id',
+                'productos.codigobarra',
+                'productos.producto',
+                'productos.stock',
+                'productos.preciocompra',
+                'productos.precioventa',
+
+                'categorias.id AS categoria.id',
+                'categorias.categoria AS categoria.categoria',
+                'categorias.descripcion AS categoria.descripcion',
+                'categorias.estado AS categoria.estado',
+
+                'medidas.id AS medida.id',
+                'medidas.medida AS medida.medida',
+                'medidas.medidacorta AS medida.medidacorta',
+                'medidas.estado AS medida.estado',
+
+                'productos.estado',
             ])
-                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
-                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
-                ->where('roles.prioridad', '>=', $sesion['rol']['prioridad'])
+                ->leftjoin('categorias', 'productos._categoria', '=', 'categorias.id')
+                ->leftjoin('medidas', 'productos._medida', '=', 'medidas.id')
                 ->get();
 
             $filas = array();
             foreach ($filasJpa as $filaJpa) {
                 $fila = gJSON::restore($filaJpa->toArray());
-                $fila['rol']['permisos'] = gJSON::parse($fila['rol']['permisos']);
                 $filas[] = $fila;
             }
             $response->setStatus(200);
@@ -79,11 +76,11 @@ class UsuarioController extends Controller
         }
     }
 
-    public function obtener($usuario)
+    public function obtener($_usuario)
     {
         $response = new Response();
         try {
-            $filaJpa = Usuario::select([
+            $usuarioJpa = Usuario::select([
                 'usuarios.id_relativo',
                 'usuarios.usuario',
                 'personas.nombres AS persona.nombres',
@@ -92,22 +89,22 @@ class UsuarioController extends Controller
             ])
                 ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
                 ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
-                ->where('usuarios.usuario', $usuario)
+                ->where('usuarios.usuario', $_usuario)
                 ->first();
 
-            if (!$filaJpa) {
+            if (!$usuarioJpa) {
                 throw new Exception('Este usuario no existe');
             }
 
-            if (!$filaJpa->estado) {
+            if (!$usuarioJpa->estado) {
                 throw new Exception('Este usuario se encuentra inactivo');
             }
 
-            $fila = gJSON::restore($filaJpa->toArray());
+            $usuario = gJSON::restore($usuarioJpa->toArray());
 
             $response->setStatus(200);
             $response->setMessage('Operación correcta');
-            $response->setData($fila);
+            $response->setData($usuario);
         } catch (\Throwable $th) {
             $response->setStatus(gStatus::get($th->getCode()));
             $response->setMessage($th->getMessage());
@@ -126,68 +123,64 @@ class UsuarioController extends Controller
 
             [$estado, $mensaje, $sesion] = gValidate::obtener($request);
             if ($estado != 200) {
-                throw new Exception($mensaje, $estado);
+                throw new Exception($mensaje);
             }
-            if (!gvalidate::verificar($sesion['rol']['permisos'], 'usuarios', 'listar')) {
+            if (!gvalidate::verificar($sesion['rol']['permisos'], 'usuarios', 'read')) {
                 throw new Exception('No tienes permisos para listar los usuarios del sistema');
             }
 
-            $sql = Usuario::select([
+            $query = Usuario::select([
                 'usuarios.id',
-                'usuarios.id_relativo',
+                'usuarios.is_relativo',
                 'usuarios.usuario',
-                'personas.id AS persona.id',
-                'personas.numerodocumento AS persona.dni',
-                'personas.apellidos AS persona.apellidos',
-                'personas.nombres AS persona.nombres',
-                'personas.telefono AS persona.telefono',
-                'personas.correo AS persona.correo',
-                'personas.direccion AS persona.direccion',
-                'usuarios.estado AS persona.estado',
-                'roles.id AS rol.id',
-                'roles.rol AS rol.rol',
-                'roles.prioridad AS rol.prioridad',
-                'roles.descripcion AS rol.descripcion',
-                'roles.permisos AS rol.permisos',
-                'roles.estado AS rol.estado',
+                'usuarios.password',
+                'usuarios.dni',
+                'usuarios.lastname',
+                'usuarios.name',
+                'usuarios.email',
+                'usuarios.phone_prefix',
+                'usuarios.phone_number',
+                'roles.id AS role.id',
+                'roles.role AS role.role',
+                'roles.description AS role.description',
+                'roles.permissions AS role.permissions',
                 'usuarios.estado',
             ])
-                ->leftjoin('roles', 'usuarios._rol', '=', 'roles.id')
-                ->leftjoin('personas', 'usuarios._persona', '=', 'personas.id')
-                ->where('roles.prioridad', '>=', $sesion['rol']['prioridad'])
+                ->leftjoin('roles', 'usuarios._role', '=', 'roles.id')
+                ->where('roles.priority', '>=', $sesion['rol']['prioridad'])
                 ->orderBy('usuarios.' . $request->order['column'], $request->order['dir']);
 
             if (!$request->all) {
-                $sql->whereNotNull('usuarios.estado');
+                $query->whereNotNull('usuarios.estado');
             }
 
-            $sql->where(function ($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $column = $request->search['column'];
                 $type = $request->search['regex'] ? 'like' : '=';
                 $value = $request->search['value'];
                 $value = $type == 'like' ? DB::raw("'%{$value}%'") : $value;
-                if ($column == 'usuario' || $column == '*') {
-                    $q->where('usuarios.usuario', $type, $value);
+                if ($column == 'usuarioname' || $column == '*') {
+                    $q->where('usuarios.usuarioname', $type, $value);
                 }
-                if ($column == 'apellidos' || $column == '*') {
-                    $q->orWhere('personas.apellidos', $type, $value);
+                if ($column == 'lastname' || $column == '*') {
+                    $q->orWhere('usuarios.lastname', $type, $value);
                 }
-                if ($column == 'nombres' || $column == '*') {
-                    $q->orWhere('personas.nombres', $type, $value);
+                if ($column == 'name' || $column == '*') {
+                    $q->orWhere('usuarios.name', $type, $value);
                 }
-                if ($column == 'correo' || $column == '*') {
-                    $q->orWhere('personas.correo', $type, $value);
+                if ($column == 'email' || $column == '*') {
+                    $q->orWhere('usuarios.email', $type, $value);
                 }
-                if ($column == 'telefono' || $column == '*') {
-                    $q->orWhere('personas.telefono', $type, $value);
+                if ($column == 'phone_number' || $column == '*') {
+                    $q->orWhere('usuarios.phone_number', $type, $value);
                 }
-                if ($column == '_rol' || $column == '*') {
-                    $q->orWhere('roles.rol', $type, $value);
+                if ($column == '_role' || $column == '*') {
+                    $q->orWhere('roles.role', $type, $value);
                 }
             });
 
-            $iTotalDisplayRecords = $sql->count();
-            $usuariosJpa = $sql
+            $iTotalDisplayRecords = $query->count();
+            $usuariosJpa = $query
                 ->skip($request->start)
                 ->take($request->length)
                 ->get();
